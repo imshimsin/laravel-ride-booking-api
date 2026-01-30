@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -20,8 +20,10 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'type',
+        'latitude',
+        'longitude',
     ];
-
     /**
      * The attributes that should be hidden for serialization.
      *
@@ -42,6 +44,33 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'latitude' => 'decimal:8',
+            'longitude' => 'decimal:8',
         ];
+    }
+
+    public function ridesAsPassenger(): HasMany
+    {
+        return $this->hasMany(Ride::class, 'passenger_id');
+    }
+
+    public function ridesAsDriver(): HasMany
+    {
+        return $this->hasMany(Ride::class, 'driver_id');
+    }
+
+    public function rideDriverRequests(): HasMany
+    {
+        return $this->hasMany(RideDriverRequest::class, 'driver_id');
+    }
+
+    public function isPassenger(): bool
+    {
+        return $this->type === 'passenger';
+    }
+
+    public function isDriver(): bool
+    {
+        return $this->type === 'driver';
     }
 }
