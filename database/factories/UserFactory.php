@@ -29,7 +29,18 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
+            'type' => 'passenger',
         ];
+    }
+
+    public function passenger(): static
+    {
+        return $this->state(fn (array $attributes) => ['type' => 'passenger']);
+    }
+
+    public function driver(): static
+    {
+        return $this->state(fn (array $attributes) => ['type' => 'driver']);
     }
 
     /**
