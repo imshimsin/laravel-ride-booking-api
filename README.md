@@ -1,66 +1,105 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Laravel Ride Booking API
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Simple ride booking API built with Laravel. Has passenger/driver endpoints and a basic admin panel to view rides.
 
-## About Laravel
+## What it does
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+Passengers can create ride requests, approve drivers who've requested the ride, and mark rides complete. Drivers update their location, see nearby pending rides (within a radius), request rides, and mark them complete. A ride is only fully done when both passenger and driver have marked it complete.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Admin panel at `/admin/rides` shows all rides with details.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Setup
 
-## Learning Laravel
+You'll need PHP 8.2+, Composer, and a database (SQLite or MySQL works fine).
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+```bash
+git clone <repo-url>
+cd laravel-ride-booking-api
+composer install
+cp .env.example .env
+php artisan key:generate
+```
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+Configure your database in `.env`. For SQLite, make sure `database/database.sqlite` exists. For MySQL, set the usual DB_* vars.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+```bash
+php artisan migrate
+php artisan db:seed   # optional - adds sample users and rides
+php artisan serve
+```
 
-## Laravel Sponsors
+App runs at `http://localhost:8000`.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## API Usage
 
-### Premium Partners
+No real auth for this demo. Just pass `X-User-Id` header with a valid user ID. Passenger endpoints need a passenger user, driver endpoints need a driver user. Wrong type = 403.
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+After seeding you get:
+- ID 1: passenger@example.com (passenger)
+- ID 2: driver@example.com (driver)
+- ID 3: driver2@example.com (driver)
 
-## Contributing
+### Passenger
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+**Create ride**
+```
+POST /api/passenger/rides
+X-User-Id: 1
+Body: { "pickup_latitude": 40.7128, "pickup_longitude": -74.0060, "destination_latitude": 40.7580, "destination_longitude": -73.9855 }
+```
 
-## Code of Conduct
+**Approve driver**
+```
+POST /api/passenger/rides/{ride_id}/approve-driver/{ride_driver_request_id}
+X-User-Id: 1
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+**Mark complete**
+```
+POST /api/passenger/rides/{ride_id}/complete
+X-User-Id: 1
+```
 
-## Security Vulnerabilities
+### Driver
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+**Update location** (required before nearby rides work)
+```
+POST /api/driver/location
+X-User-Id: 2
+Body: { "latitude": 40.7128, "longitude": -74.0060 }
+```
 
-## License
+**Nearby rides**
+```
+GET /api/driver/rides/nearby?radius=10
+X-User-Id: 2
+```
+Radius is in km. Default 10, max 100.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+**Request ride**
+```
+POST /api/driver/rides/{ride_id}/request
+X-User-Id: 2
+```
+
+**Mark complete**
+```
+POST /api/driver/rides/{ride_id}/complete
+X-User-Id: 2
+```
+
+## Flow
+
+1. Passenger creates ride
+2. Driver updates location
+3. Driver fetches nearby rides
+4. Driver requests a ride
+5. Passenger approves one driver
+6. Passenger marks complete
+7. Driver marks complete
+
+Both 6 and 7 can happen in any order. Ride status becomes "completed" only when both are done.
+
+## Tech
+
+Laravel 11, Blade for admin, no frontend framework. Header-based user identification for the API.
